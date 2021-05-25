@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <style>
+        .chart-container{
+            margin: auto auto;
+            font-family:Arial, Helvetica, sans-serif;
+        }
+        svg{
+            overflow: visible;
+        }
+        .h1 {
+            font-family:'Times New Roman', Times, serif;
+            font-weight: lighter;
+            fill: black;
+            text-anchor: end;
+            position: absolute;
+            font-size: 42px;
+        }        
+        .circulos_texto {
+            font-family:Arial, Helvetica, sans-serif;
+            font-size: 11px;
+            text-anchor: middle;
+            fill: #045c90;
+            }   
+        .legend {
+            font-family:Arial, Helvetica, sans-serif;
+            font-size: 12px;
+            font-weight: bold;
+            text-anchor: start;
+            fill: #045c90;
+            } 
+    </style>
+</head>
+
+<body>
+    <div class = "chart-container grid-vfc">
+        <svg width="1250px" height="800px"></svg>
+    </div> 
+</body>
+
+<script src="https://d3js.org/d3.v6.min.js"></script>
+
+<script>
+    let width = 1050;
+    let height = 750;
+    let margin = ({top: 5, right: 10, bottom: 30, left: 10});
+    let svg = d3.select("body").select("svg")
+        .attr("viewBox", [0,0,width, height])
+        .style("overflow", "visible");
+        
+    let data = d3.csv("regional_poverty_wide.csv").then(function (data) {
+         
+        let columns = data.columns.slice(1)
+        
+        let series = data.map(d => ({
+            name: d.region_name,
+            values: columns.map(k => +d[k])
+        }))
+
+        let years = columns.map(d => +[d])
+
+        var formatxAxis = d3.format('.0f');
+        
+        let y = d3.scaleLinear()
+            .domain([0, 100]).nice()
+            .range([height - margin.bottom, margin.top])
+
+        let x = d3.scaleLinear()
+            .domain([2004, 2020]).nice()
+            .range([margin.left, width - margin.right])
+
+        let xAxis = g => g
+            .attr("transform", `translate(0,${height - margin.bottom})`)
+            .attr("font-weight", "bold")
+            .call(d3.axisBottom(x).ticks(17).tickSizeOuter(0).tickFormat(formatxAxis))
+        
+        let yAxisl = g => g
+            .attr("transform", `translate(${margin.left},0)`)
+            .attr("font-weight", "bold")
+            .style("stroke-dasharray", ("4, 4"))
+            .style("stroke-", "lightgrey")
+            .call(d3.axisLeft(y).tickValues([20,40]).tickPadding(15).tickSize(-width+margin.right+margin.left))
+            .call(g => g.select(".domain").remove())
+
+        let yAxisr = g => g
+        .attr("transform", `translate(${width-margin.right},0)`)
+            .attr("font-weight", "bold")
+            .style("stroke-dasharray", ("4, 4"))
+            .style("stroke-", "lightgrey")
+            .call(d3.axisRight(y).tickValues([60,80]).tickPadding(15).tickSize(-width+margin.left +margin.right))
+            .call(g => g.select(".domain").remove())
+            .call(g => g.select(".tick:last-of-type text").clone()
+                .attr("x", 90)
+                .attr("y", 0)
+                .attr("text-anchor", "end")
+                .attr("font-weight", "bold")
+                .text("(%) Poverty"))                  
+
+        let line = d3.line()
+            .defined(d => !isNaN(d))
+            .x((d, i) => x(years[i]))
+            .y(d => y(d))         
+
+        svg.append("g")
+            .call(xAxis);
+
+        svg.append("g")
+            .call(yAxisl);
+
+        svg.append("g")
+            .call(yAxisr);
+
+        svg.append("text")
+            .attr("x", width * 99 / 100) 
+            .attr("y", margin.top + 80)
+            .attr("class", "h1")
+            .text("Peru: COVID-19 Pandemic Wiped Out");
+
+        svg.append("text")
+            .attr("x", width * 99 / 100) 
+            .attr("y", margin.top + 120)
+            .attr("class", "h1")
+            .text("10-years of Sustained Poverty Reduction");
+
+        svg.append("text")
+            .attr("x", margin.left - 15) 
+            .attr("y", height * 1.01)
+            .attr("font-family", "Arial, Helvetica, sans-serif")
+            .attr("font-size", 10)
+            .attr("font-weight", "lighter")
+            .attr("fill", "black")
+            .attr("text-anchor", "start")
+            .attr("position", "absolute")
+            .html("Source: Peru's National Institute of Statistics and Informatics. Author's calculations are available at this <a href='https://github.com/vfuentesc/DataViz-FinalProject'>Github reposository.</a>");
+
+        let dark_blue = "#045c90"
+        let light_blue = "#c3cbe3"
+        
+        const path = svg.append("g")
+            .attr("fill", "none")
+            .attr("stroke-linejoin", "round")
+            .attr("stroke-linecap", "round")
+            .selectAll("path")
+            .data(series)
+            .join("path")
+            .style("mix-blend-mode", "multiply")
+            .attr("d", d => line(d.values))
+            .attr("stroke", d => {
+                if (d.name == "Perú") {
+                    return dark_blue
+                } else {
+                    return light_blue
+                }
+            })
+            .attr("stroke-width", d => {
+                if (d.name == "Perú") {
+                    return 4
+                } else {
+                    return 1.5
+                }
+            })
+                 
+        function hover(svg, path) {
+  
+            if ("ontouchstart" in document) svg
+                .style("-webkit-tap-highlight-color", "transparent")
+                .on("touchmove", moved)
+                .on("touchstart", entered)
+                .on("touchend", left)
+            else svg
+                .on("mousemove", moved)
+                .on("mouseenter", entered)
+                .on("mouseleave", left);
+
+            const dot = svg.append("g").attr("display", "none");
+            dot.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot1 = svg.append("g").attr("display", "none");                
+            dot1.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot1.append("text").attr("class", "circulos_texto").attr("y", -8); 
+            
+            const dot2 = svg.append("g").attr("display", "none");
+            dot2.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot2.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot3 = svg.append("g").attr("display", "none");                
+            dot3.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot3.append("text").attr("class", "circulos_texto").attr("y", -8); 
+
+            const dot4 = svg.append("g").attr("display", "none");
+            dot4.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot4.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot5 = svg.append("g").attr("display", "none");                
+            dot5.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot5.append("text").attr("class", "circulos_texto").attr("y", -8); 
+            
+            const dot6 = svg.append("g").attr("display", "none");
+            dot6.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot6.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot7 = svg.append("g").attr("display", "none");                
+            dot7.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot7.append("text").attr("class", "circulos_texto").attr("y", -8); 
+
+            const dot8 = svg.append("g").attr("display", "none");
+            dot8.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot8.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot9 = svg.append("g").attr("display", "none");                
+            dot9.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot9.append("text").attr("class", "circulos_texto").attr("y", -8); 
+            
+            const dot10 = svg.append("g").attr("display", "none");
+            dot10.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot10.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot11 = svg.append("g").attr("display", "none");                
+            dot11.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot11.append("text").attr("class", "circulos_texto").attr("y", -8); 
+
+            const dot12 = svg.append("g").attr("display", "none");
+            dot12.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot12.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot13 = svg.append("g").attr("display", "none");                
+            dot13.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot13.append("text").attr("class", "circulos_texto").attr("y", -8); 
+            
+            const dot14 = svg.append("g").attr("display", "none");
+            dot14.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot14.append("text").attr("class", "circulos_texto").attr("y", -8);
+                           
+            const dot15 = svg.append("g").attr("display", "none");                
+            dot15.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot15.append("text").attr("class", "circulos_texto").attr("y", 18);
+
+            const dot16 = svg.append("g").attr("display", "none");                
+            dot16.append("circle").attr("r", 3). attr("fill", dark_blue);
+            dot16.append("text").attr("class", "circulos_texto").attr("y", -8);
+
+            const legend = svg.append("g");                
+            legend.append("circle").attr("r", 0). attr("fill", "none");
+            legend.append("text").attr("class", "legend").attr("x", 20);
+
+            const initial_legen = svg.append("text")
+                .attr("class", "legend")
+                .attr("x", width)
+                .attr("y", height * 2/3)
+                .text("Perú")
+            
+            function moved(event) {
+                initial_legen.attr("display", "none");
+                event.preventDefault();
+                const pointer = d3.pointer(event, this);
+                const xm = x.invert(pointer[0]);
+                const ym = y.invert(pointer[1]);
+                const i = d3.bisectCenter(years, xm);
+                const s = d3.least(series, d => Math.abs(d.values[i] - ym));
+                path
+                    .attr("stroke", d => d === s ? dark_blue : "lightgrey")
+                    .filter(d => d === s).raise()
+                    .attr("stroke-width", d => d === s ? 3 : 1.5);
+                
+                dot.attr("transform", `translate(${x(years[0])},${y(s.values[0])})`);
+                dot.select("text").text(d3.format(".1f")(s.values[0]) + "%");
+                dot1.attr("transform", `translate(${x(years[1])},${y(s.values[1])})`);
+                dot1.select("text").text(d3.format(".1f")(s.values[1]) + "%");
+                dot2.attr("transform", `translate(${x(years[2])},${y(s.values[2])})`);
+                dot2.select("text").text(d3.format(".1f")(s.values[2]) + "%");
+                dot3.attr("transform", `translate(${x(years[3])},${y(s.values[3])})`);
+                dot3.select("text").text(d3.format(".1f")(s.values[3]) + "%");
+                dot4.attr("transform", `translate(${x(years[4])},${y(s.values[4])})`);
+                dot4.select("text").text(d3.format(".1f")(s.values[4]) + "%");
+                dot5.attr("transform", `translate(${x(years[5])},${y(s.values[5])})`);
+                dot5.select("text").text(d3.format(".1f")(s.values[5]) + "%");
+                dot6.attr("transform", `translate(${x(years[6])},${y(s.values[6])})`);
+                dot6.select("text").text(d3.format(".1f")(s.values[6]) + "%");
+                dot7.attr("transform", `translate(${x(years[7])},${y(s.values[7])})`);
+                dot7.select("text").text(d3.format(".1f")(s.values[7]) + "%");
+                dot8.attr("transform", `translate(${x(years[8])},${y(s.values[8])})`);
+                dot8.select("text").text(d3.format(".1f")(s.values[8]) + "%");
+                dot9.attr("transform", `translate(${x(years[9])},${y(s.values[9])})`);
+                dot9.select("text").text(d3.format(".1f")(s.values[9]) + "%");
+                dot10.attr("transform", `translate(${x(years[10])},${y(s.values[10])})`);
+                dot10.select("text").text(d3.format(".1f")(s.values[10]) + "%");
+                dot11.attr("transform", `translate(${x(years[11])},${y(s.values[11])})`);
+                dot11.select("text").text(d3.format(".1f")(s.values[11]) + "%");
+                dot12.attr("transform", `translate(${x(years[12])},${y(s.values[12])})`);
+                dot12.select("text").text(d3.format(".1f")(s.values[12]) + "%");
+                dot13.attr("transform", `translate(${x(years[13])},${y(s.values[13])})`);
+                dot13.select("text").text(d3.format(".1f")(s.values[13]) + "%");
+                dot14.attr("transform", `translate(${x(years[14])},${y(s.values[14])})`);
+                dot14.select("text").text(d3.format(".1f")(s.values[14]) + "%");
+                dot15.attr("transform", `translate(${x(years[15])},${y(s.values[15])})`);
+                dot15.select("text").text(d3.format(".1f")(s.values[15]) + "%");
+                dot16.attr("transform", `translate(${x(years[16])},${y(s.values[16])})`);
+                dot16.select("text").text(d3.format(".1f")(s.values[16]) + "%");
+                legend.attr("transform", `translate(${x(years[16])},${y(s.values[16])})`);
+                legend.select("text").text(s.name);
+            }
+
+            function entered() {
+                path
+                    .style("mix-blend-mode", null)
+                    .attr("stroke", d => {
+                        if (d.name == "Perú") {
+                            return dark_blue
+                        } else {
+                            return light_blue
+                        }
+                    })
+                    .attr("stroke-width", d => {
+                        if (d.name == "Perú") {
+                            return 4
+                        } else {
+                            return 1.5
+                        }
+                    });
+                dot.attr("display", null);
+                dot1.attr("display", null);
+                dot2.attr("display", null);
+                dot3.attr("display", null);
+                dot4.attr("display", null);
+                dot5.attr("display", null);
+                dot6.attr("display", null);
+                dot7.attr("display", null);
+                dot8.attr("display", null);
+                dot9.attr("display", null);
+                dot10.attr("display", null);
+                dot11.attr("display", null);
+                dot12.attr("display", null);
+                dot13.attr("display", null);
+                dot14.attr("display", null);
+                dot15.attr("display", null);
+                dot16.attr("display", null);
+                legend.attr("display", null);             
+            }
+
+            function left() {
+                path
+                    .style("mix-blend-mode", "multiply")
+                    .attr("stroke", d => {
+                        if (d.name == "Perú") {
+                            return dark_blue
+                        } else {
+                            return light_blue
+                        }
+                    })
+                    .attr("stroke-width", d => {
+                        if (d.name == "Perú") {
+                            return 4
+                        } else {
+                            return 1.5
+                        }
+                    });
+                dot.attr("display", "none");
+                dot1.attr("display", "none");
+                dot1.attr("display", "none");
+                dot2.attr("display", "none");
+                dot3.attr("display", "none");
+                dot4.attr("display", "none");
+                dot5.attr("display", "none");
+                dot6.attr("display", "none");
+                dot7.attr("display", "none");
+                dot8.attr("display", "none");
+                dot9.attr("display", "none");
+                dot10.attr("display", "none");
+                dot11.attr("display", "none");
+                dot12.attr("display", "none");
+                dot13.attr("display", "none");
+                dot14.attr("display", "none");
+                dot15.attr("display", "none");
+                dot16.attr("display", "none");
+                legend.attr("display", "none");
+                initial_legen.attr("display", null);
+            }
+        }
+        svg.call(hover, path);   
+    })
+</script>
